@@ -1,87 +1,62 @@
 (function(){
-  const originalLogin=window.login;
   const role=()=>state.profile?.role||'admin';
   const isAdmin=()=>role()==='admin';
   const isEmployee=()=>['employee','account_manager','content_manager','designer','ads_manager'].includes(role());
   const isClient=()=>role()==='client';
   const escx=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
-  window.login=function(){
-    document.querySelector('#app').innerHTML='<div class="auth"><div class="authbox"><div class="logo dark">LOOPIFY<span>ERP</span></div><h1>Sign in</h1><p>Admin, employee and client portal</p><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password"><button class="primary" onclick="signIn()">Sign in</button><div id="authmsg"></div></div></div>';
-  };
+  window.login=function(){document.querySelector('#app').innerHTML='<div class="auth"><div class="authbox"><div class="logo dark">LOOPIFY<span>ERP</span></div><h1>Sign in</h1><p>Admin, employee and client portal</p><input id="email" type="email" placeholder="Email"><input id="password" type="password" placeholder="Password"><button class="primary" onclick="signIn()">Sign in</button><div id="authmsg"></div></div></div>';};
 
   function scopedData(){
     if(isAdmin()) return;
     if(isClient()){
-      const c=state.clients.find(x=>x.user_id===state.user?.id);
-      state.clients=c?[c]:[];
-      const cid=c?.id;
-      state.content=state.content.filter(x=>x.client_id===cid);
-      state.tasks=state.tasks.filter(x=>x.client_id===cid);
-      state.leads=state.leads.filter(x=>x.client_id===cid);
-      state.campaigns=state.campaigns.filter(x=>x.client_id===cid);
-      state.invoices=state.invoices.filter(x=>x.client_id===cid);
-      state.expenses=[];
+      const c=state.clients.find(x=>x.user_id===state.user?.id); const cid=c?.id;
+      state.clients=c?[c]:[]; state.content=state.content.filter(x=>x.client_id===cid); state.tasks=state.tasks.filter(x=>x.client_id===cid); state.leads=state.leads.filter(x=>x.client_id===cid); state.campaigns=state.campaigns.filter(x=>x.client_id===cid); state.invoices=state.invoices.filter(x=>x.client_id===cid); state.expenses=[];
     } else if(isEmployee()){
-      const uid=state.user?.id;
-      const managed=state.clients.filter(x=>x.manager_id===uid);
-      const ids=new Set(managed.map(x=>x.id));
-      state.clients=managed;
-      state.content=state.content.filter(x=>x.owner_id===uid||ids.has(x.client_id));
-      state.tasks=state.tasks.filter(x=>x.owner_id===uid||ids.has(x.client_id));
-      state.leads=state.leads.filter(x=>ids.has(x.client_id));
-      state.campaigns=state.campaigns.filter(x=>ids.has(x.client_id));
-      state.invoices=state.invoices.filter(x=>ids.has(x.client_id));
-      state.expenses=[];
+      const uid=state.user?.id; const managed=state.clients.filter(x=>x.manager_id===uid); const ids=new Set(managed.map(x=>x.id));
+      state.clients=managed; state.content=state.content.filter(x=>x.owner_id===uid||ids.has(x.client_id)); state.tasks=state.tasks.filter(x=>x.owner_id===uid||ids.has(x.client_id)); state.leads=state.leads.filter(x=>ids.has(x.client_id)); state.campaigns=state.campaigns.filter(x=>ids.has(x.client_id)); state.invoices=state.invoices.filter(x=>ids.has(x.client_id)); state.expenses=[];
     }
   }
 
   function navForRole(){
-    const allowed=isAdmin()?['dashboard','clients','content','tasks','leads','campaigns','finance','reports']:isClient()?['dashboard','content','tasks']:['dashboard','clients','content','tasks','leads','campaigns'];
+    const allowed=isAdmin()?['dashboard','clients','content','tasks','leads','campaigns','finance','reports','users']:isClient()?['dashboard','content','tasks']:['dashboard','clients','content','tasks','leads','campaigns'];
     document.querySelectorAll('[data-nav]').forEach(b=>{if(!allowed.includes(b.dataset.nav))b.style.display='none';});
     if(isAdmin()){
-      const nav=document.querySelector('.nav');
-      if(nav&&!document.querySelector('[data-nav="users"]')){
-        const b=document.createElement('button');b.dataset.nav='users';b.textContent='♙ User Management';b.onclick=()=>{state.section='users';render()};nav.appendChild(b);
-      }
+      const nav=document.querySelector('.nav'); if(nav&&!document.querySelector('[data-nav="users"]')){const b=document.createElement('button');b.dataset.nav='users';b.textContent='♙ User Management';b.onclick=()=>{state.section='users';render()};nav.appendChild(b);}
     }
   }
 
   window.users=function(){
-    if(!isAdmin()) return '<div class="panel"><h2>Access denied</h2></div>';
-    const employees=state.profiles.filter(p=>p.role!=='client');
-    const clients=state.profiles.filter(p=>p.role==='client');
-    return '<div class="top"><div><div class="eyebrow">LOOPIFY / ADMIN</div><h1>User Management</h1><div class="subtitle">Create employee and client login accounts.</div></div><div class="user"><button class="primary" onclick="openUserForm()">+ Add User</button></div></div><div class="grid"><div class="panel full"><div class="panel-head"><h2>Employees & Admins</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead><tbody>'+employees.map(p=>'<tr><td><b>'+escx(p.full_name)+'</b></td><td>'+escx(p.email||'-')+'</td><td>'+escx(p.role)+'</td></tr>').join('')+'</tbody></table></div></div><div class="panel full"><div class="panel-head"><h2>Client Accounts</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Client</th><th>Role</th></tr></thead><tbody>'+clients.map(p=>{const c=state.clients.find(x=>x.user_id===p.id);return '<tr><td><b>'+escx(p.full_name)+'</b></td><td>'+escx(p.email||'-')+'</td><td>'+escx(c?.name||'Linked client')+'</td><td>client</td></tr>'}).join('')+'</tbody></table></div></div></div>';
+    if(!isAdmin())return '<div class="panel"><h2>Access denied</h2></div>';
+    const employees=state.profiles.filter(p=>p.role!=='client'); const clients=state.profiles.filter(p=>p.role==='client');
+    return '<div class="top"><div><div class="eyebrow">LOOPIFY / ADMIN</div><h1>User Management</h1><div class="subtitle">Create employee and client login accounts.</div></div><div class="user"><button class="primary" onclick="openUserForm()">+ Add User</button></div></div><div class="grid"><div class="panel full"><div class="panel-head"><h2>Employees & Admins</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Assigned Clients</th></tr></thead><tbody>'+employees.map(p=>{const cs=state.clients.filter(c=>c.manager_id===p.id).map(c=>c.name).join(', ')||'-';return '<tr><td><b>'+escx(p.full_name)+'</b></td><td>'+escx(p.email||'-')+'</td><td>'+escx(p.role)+'</td><td>'+escx(cs)+'</td></tr>';}).join('')+'</tbody></table></div></div><div class="panel full"><div class="panel-head"><h2>Client Accounts</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Client</th><th>Role</th></tr></thead><tbody>'+clients.map(p=>{const c=state.clients.find(x=>x.user_id===p.id);return '<tr><td><b>'+escx(p.full_name)+'</b></td><td>'+escx(p.email||'-')+'</td><td>'+escx(c?.name||'Linked client')+'</td><td>client</td></tr>';}).join('')+'</tbody></table></div></div></div>';
   };
 
   window.openUserForm=function(){
-    const cs=state.clients.filter(c=>!c.user_id);
-    document.querySelector('#modalBox').innerHTML='<div class="modal-head"><h2>Create Login Account</h2><button class="icon-btn" onclick="closeModal()">×</button></div><div class="form-grid"><label>Full name<input id="u_name" placeholder="Employee / Client name"></label><label>Email<input id="u_email" type="email" placeholder="login@email.com"></label><label>Password<input id="u_password" type="password" placeholder="Minimum 6 characters"></label><label>Role<select id="u_role" onchange="toggleClientLink()"><option value="employee">Employee</option><option value="client">Client</option></select></label><label id="u_client_wrap">Client<select id="u_client">'+cs.map(c=>'<option value="'+c.id+'">'+escx(c.name)+'</option>').join('')+'</select></label></div><div class="form-actions"><button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="createPortalUser()">Create account</button></div>';
+    const cs=state.clients; const available=cs.filter(c=>!c.user_id);
+    document.querySelector('#modalBox').innerHTML='<div class="modal-head"><h2>Create Login Account</h2><button class="icon-btn" onclick="closeModal()">×</button></div><div class="form-grid"><label>Full name<input id="u_name" placeholder="Employee / Client name"></label><label>Email<input id="u_email" type="email" placeholder="login@email.com"></label><label>Password<input id="u_password" type="password" placeholder="Minimum 6 characters"></label><label>Role<select id="u_role" onchange="toggleClientLink()"><option value="employee">Employee</option><option value="client">Client</option></select></label><label id="u_client_wrap">Client<select id="u_client">'+available.map(c=>'<option value="'+c.id+'">'+escx(c.name)+'</option>').join('')+'</select></label><label id="u_assign_wrap">Assign employee to clients<select id="u_assign" multiple size="5">'+cs.map(c=>'<option value="'+c.id+'">'+escx(c.name)+'</option>').join('')+'</select><small>Use Ctrl/Cmd to select multiple clients.</small></label></div><div class="form-actions"><button class="secondary" onclick="closeModal()">Cancel</button><button class="primary" onclick="createPortalUser()">Create account</button></div>';
     document.querySelector('#modal').classList.add('open');toggleClientLink();
   };
-  window.toggleClientLink=function(){const r=document.querySelector('#u_role')?.value;const w=document.querySelector('#u_client_wrap');if(w)w.style.display=r==='client'?'grid':'none';};
+  window.toggleClientLink=function(){const r=document.querySelector('#u_role')?.value;const w=document.querySelector('#u_client_wrap'),a=document.querySelector('#u_assign_wrap');if(w)w.style.display=r==='client'?'grid':'none';if(a)a.style.display=r==='employee'?'grid':'none';};
 
   window.createPortalUser=async function(){
-    const body={full_name:document.querySelector('#u_name')?.value.trim(),email:document.querySelector('#u_email')?.value.trim(),password:document.querySelector('#u_password')?.value,role:document.querySelector('#u_role')?.value,client_id:document.querySelector('#u_client')?.value||null};
+    const roleValue=document.querySelector('#u_role')?.value; const selected=[...document.querySelector('#u_assign')?.selectedOptions||[]].map(o=>o.value);
+    const body={full_name:document.querySelector('#u_name')?.value.trim(),email:document.querySelector('#u_email')?.value.trim(),password:document.querySelector('#u_password')?.value,role:roleValue,client_id:document.querySelector('#u_client')?.value||null};
     if(!body.full_name||!body.email||!body.password)return alert('Please fill name, email and password.');
-    const {data,error}=await db.functions.invoke('create-user',{body});
-    if(error)return alert(error.message||'Could not create account.');
-    if(data?.error)return alert(data.error);
-    closeModal();await refresh();scopedData();render();alert('Login account created successfully.');
+    if(roleValue==='client'&&!body.client_id)return alert('Please select the client.');
+    const {data,error}=await db.functions.invoke('create-user',{body}); if(error)return alert(error.message||'Could not create account.'); if(data?.error)return alert(data.error);
+    if(roleValue==='employee'&&selected.length){const {error:e}=await db.from('clients').update({manager_id:data.user_id}).in('id',selected);if(e)return alert(e.message||'User created, but client assignment failed.');}
+    closeModal();await refresh();if(isAdmin()){render();}alert('Login account created successfully.');
   };
 
   const oldRender=window.render;
   window.render=function(){
     if(state.section==='users')document.querySelector('#view').innerHTML=window.users();
     else if(isClient()&&state.section==='dashboard')document.querySelector('#view').innerHTML='<div class="top"><div><div class="eyebrow">LOOPIFY / CLIENT PORTAL</div><h1>Client Dashboard</h1><div class="subtitle">Review your content, tasks and approvals.</div></div></div><section class="cards"><div class="card metric"><span>Content</span><strong>'+state.content.length+'</strong><small>Your content items</small></div><div class="card metric"><span>Pending Review</span><strong>'+state.content.filter(x=>x.status==='review').length+'</strong><small>Waiting for approval</small></div><div class="card metric"><span>Approved</span><strong>'+state.content.filter(x=>x.status==='approved').length+'</strong><small>Client approved</small></div><div class="card metric"><span>Tasks</span><strong>'+state.tasks.length+'</strong><small>Assigned work</small></div></section>';
-    else oldRender();
-    navForRole();
+    else oldRender(); navForRole();
   };
 
   const oldShell=window.shell;
   window.shell=function(){oldShell();scopedData();window.render();navForRole();};
-
-  setTimeout(()=>{
-    if(state.profile){scopedData();if(typeof shell==='function')window.render();navForRole();}
-  },800);
+  setTimeout(()=>{if(!state.user){window.login();return;}if(state.profile){scopedData();window.render();navForRole();}},800);
 })();
