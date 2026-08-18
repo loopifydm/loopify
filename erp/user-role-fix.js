@@ -1,13 +1,17 @@
-// Custom employee job-role support. Database account role remains employee/client for permissions.
+// Custom employee job-role support + user delete actions.
 (function(){
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
   const employeeRoles=['Employee','Content Creator','Video Editor','Graphic Designer','Social Media Manager','Copywriter','Ads Manager','Account Manager','Custom Role'];
   const label=p=>p?.role==='client'?'Client':(p?.job_title||'Employee');
+  const deleteButton=p=>{
+    const disabled=String(p?.id||'')===String(state.user?.id||'');
+    return '<button type="button" class="secondary user-delete-btn" '+(disabled?'disabled title="You cannot delete your own account"':'')+' onclick="deletePortalUser(\''+esc(p.id)+'\',\''+esc(p.full_name||'this user').replace(/'/g,"&#039;")+'\',this)">Delete</button>';
+  };
 
   window.users=function(){
     if(state.profile?.role!=='admin')return '<div class="panel"><h2>Access denied</h2></div>';
     const employees=state.profiles.filter(p=>p.role!=='client'),clients=state.profiles.filter(p=>p.role==='client');
-    return '<div class="top"><div><div class="eyebrow">LOOPIFY / ADMIN</div><h1>User Management</h1><div class="subtitle">Create employee and client login accounts.</div></div><div class="user"><button class="primary" onclick="openUserForm()">+ Add User</button></div></div><div class="grid"><div class="panel full"><div class="panel-head"><h2>Employees & Admins</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Assigned Clients</th></tr></thead><tbody>'+employees.map(p=>{const cs=state.clients.filter(c=>c.manager_id===p.id).map(c=>c.name).join(', ')||'-';return '<tr><td><b>'+esc(p.full_name)+'</b></td><td>'+esc(p.email||'-')+'</td><td>'+esc(label(p))+'</td><td>'+esc(cs)+'</td></tr>';}).join('')+'</tbody></table></div></div><div class="panel full"><div class="panel-head"><h2>Client Accounts</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Client</th><th>Role</th></tr></thead><tbody>'+clients.map(p=>{const c=state.clients.find(x=>x.user_id===p.id);return '<tr><td><b>'+esc(p.full_name)+'</b></td><td>'+esc(p.email||'-')+'</td><td>'+esc(c?.name||'Linked client')+'</td><td>Client</td></tr>';}).join('')+'</tbody></table></div></div></div>';
+    return '<div class="top"><div><div class="eyebrow">LOOPIFY / ADMIN</div><h1>User Management</h1><div class="subtitle">Create employee and client login accounts.</div></div><div class="user"><button class="primary" onclick="openUserForm()">+ Add User</button></div></div><div class="grid"><div class="panel full"><div class="panel-head"><h2>Employees & Admins</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Assigned Clients</th><th>Actions</th></tr></thead><tbody>'+employees.map(p=>{const cs=state.clients.filter(c=>c.manager_id===p.id).map(c=>c.name).join(', ')||'-';return '<tr><td><b>'+esc(p.full_name)+'</b></td><td>'+esc(p.email||'-')+'</td><td>'+esc(label(p))+'</td><td>'+esc(cs)+'</td><td>'+deleteButton(p)+'</td></tr>';}).join('')+'</tbody></table></div></div><div class="panel full"><div class="panel-head"><h2>Client Accounts</h2></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Client</th><th>Role</th><th>Actions</th></tr></thead><tbody>'+clients.map(p=>{const c=state.clients.find(x=>x.user_id===p.id);return '<tr><td><b>'+esc(p.full_name)+'</b></td><td>'+esc(p.email||'-')+'</td><td>'+esc(c?.name||'Linked client')+'</td><td>Client</td><td>'+deleteButton(p)+'</td></tr>';}).join('')+'</tbody></table></div></div></div>';
   };
 
   window.openUserForm=function(){
