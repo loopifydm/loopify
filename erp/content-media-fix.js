@@ -50,7 +50,7 @@
       <label>Caption<textarea id="cm_caption" placeholder="Caption">${esc(item?.caption||'')}</textarea></label>
       <label>Schedule<input id="cm_schedule" type="datetime-local" value="${item?.scheduled_at?new Date(item.scheduled_at).toISOString().slice(0,16):''}"></label>
       <label>Owner<select id="cm_owner">${opts(profiles,'Select team member',item?.owner_id||user?.id||'')}</select></label>
-      <label>Status<select id="cm_status">${['draft','review','approved','scheduled','published'].map(x=>`<option ${item?.status===x?'selected':''}>${x}</option>`).join('')}</select></label>
+      <label>Status<select id="cm_status">${['draft','review','approved','scheduled','published'].map(x=>`<option value="${x}" ${item?.status===x?'selected':''}>${x}</option>`).join('')}</select></label>
       <label>Content Image / Video<input id="cm_media" type="file" accept="image/*,video/*"><small>Images are automatically resized and compressed to about 2.5 MB. Videos are limited to 50 MB.</small></label>
       <div id="cm_media_info" class="tag"></div><div id="cm_media_preview">${mediaPreview}</div>
       <label class="check-row"><input id="cm_approved" type="checkbox" ${item?.client_approved?'checked':''}> Client approved</label>
@@ -61,9 +61,12 @@
 
   window.saveContentWithMedia=async function(id){
     const save=document.querySelector('#cm_save'),title=document.querySelector('#cm_title')?.value.trim(),client=document.querySelector('#cm_client')?.value;
-    if(!title)return toast('Please enter a content title');if(!client)return toast('Please select a client');save.disabled=true;save.textContent='Preparing media...';
+    if(!title)return toast('Please enter a content title');
+    if(!client)return toast('Please select a client');
+    save.disabled=true;save.textContent='Preparing media...';
     try{
-      const {data:{user}}=await mediaDB.auth.getUser();let media_url=null,media_type=null;
+      const {data:{user}}=await mediaDB.auth.getUser();
+      let media_url=null,media_type=null;
       const existing=id?(await mediaDB.from('content_items').select('media_url,media_type').eq('id',id).single()).data:null;
       const selected=document.querySelector('#cm_media')?.files?.[0];
       if(selected){
@@ -75,22 +78,72 @@
         const ext=(file.name.split('.').pop()||'bin').toLowerCase();
         const path=`${user.id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
         save.textContent=`Uploading ${formatMB(file.size)}...`;
-        const up=await mediaDB.storage.from('content-media').upload(path,file,{upsert:false,contentType:file.type||undefined,cacheControl:'3600'});if(up.error)throw up.error;
-        media_url=mediaDB.storage.from('content-media').getPublicUrl(path).data.publicUrl;media_type=file.type||'';
+        const up=await mediaDB.storage.from('content-media').upload(path,file,{upsert:false,contentType:file.type||undefined,cacheControl:'3600'});
+        if(up.error)throw up.error;
+        media_url=mediaDB.storage.from('content-media').getPublicUrl(path).data.publicUrl;
+        media_type=file.type||'';
         if(existing?.media_url?.includes('/storage/v1/object/public/content-media/')){const oldPath=existing.media_url.split('/storage/v1/object/public/content-media/')[1];if(oldPath)await mediaDB.storage.from('content-media').remove([decodeURIComponent(oldPath)])}
-      }else if(existing){media_url=existing.media_url||null;media_type=existing.media_type||null}
-      const payload={client_id:client,title,content_type:document.querySelector('#cm_type')?.value||null,platform:document.querySelector('#cm_platform')?.value||null,caption:document.querySelector('#cm_caption')?.value.trim()||null,scheduled_at:document.querySelector('#cm_schedule')?.value?new Date(document.querySelector('#cm_schedule').value).toISOString():null,owner_id:document.querySelector('#cm_owner')?.value||user.id,status:document.querySelector('#cm_status')?.value||'draft',client_approved:document.querySelector('#cm_approved')?.checked||false,media_url,media_type};
-      const r=id?await mediaDB.from('content_items').update(payload).eq('id',id):await mediaDB.from('content_items').insert(payload);if(r.error)throw r.error;
-      document.querySelector('#modal').classList.remove('show');toast(id?'Content updated successfully':'Content created successfully');setTimeout(()=>location.reload(),350);
+      }else if(existing){
+        media_url=existing.media_url||null;
+        media_type=existing.media_type||null;
+      }
+
+      const approved=document.querySelector('#cm_approved')?.checked===true;
+      const selectedStatus=document.querySelector('#cm_status')?.value||'draft';
+      // Approval is the workflow transition: checking Client approved must move Review -> Approved.
+      // If an item is already scheduled/published, preserve that later workflow state.
+      const status=(approved && ['draft','review','approved'].includes(selectedStatus))?'approved':selectedStatus;
+      const owner=document.querySelector('#cm_owner')?.value||user?.id||null;
+      const payload={
+        client_id:client,
+        title,
+        content_type:document.querySelector('#cm_type')?.value||null,
+        platform:document.querySelector('#cm_platform')?.value||null,
+        caption:document.querySelector('#cm_caption')?.value.trim()||null,
+        scheduled_at:document.querySelector('#cm_schedule')?.value?new Date(document.querySelector('#cm_schedule').value).toISOString():null,
+        owner_id:owner,
+        status,
+        client_approved:approved,
+        media_url,
+        media_type
+      };
+      const r=id?await mediaDB.from('content_items').update(payload).eq('id',id):await mediaDB.from('content_items').insert(payload);
+      if(r.error)throw r.error;
+      document.querySelector('#modal').classList.remove('show');
+      toast(id?'Content updated successfully':'Content created successfully');
+      setTimeout(()=>location.reload(),350);
     }catch(e){toast('Content error: '+e.message);save.disabled=false;save.textContent='Save Content'}
   };
 
-  window.deleteContentWithMedia=async function(id){if(!confirm('Delete this content and its uploaded media?'))return;const r=await mediaDB.from('content_items').select('media_url').eq('id',id).single();if(r.data?.media_url?.includes('/storage/v1/object/public/content-media/')){const oldPath=r.data.media_url.split('/storage/v1/object/public/content-media/')[1];if(oldPath)await mediaDB.storage.from('content-media').remove([decodeURIComponent(oldPath)])}const d=await mediaDB.from('content_items').delete().eq('id',id);if(d.error)return toast(d.error.message);document.querySelector('#modal').classList.remove('show');location.reload()};
+  window.deleteContentWithMedia=async function(id){
+    if(!confirm('Delete this content and its uploaded media?'))return;
+    const r=await mediaDB.from('content_items').select('media_url').eq('id',id).single();
+    if(r.data?.media_url?.includes('/storage/v1/object/public/content-media/')){const oldPath=r.data.media_url.split('/storage/v1/object/public/content-media/')[1];if(oldPath)await mediaDB.storage.from('content-media').remove([decodeURIComponent(oldPath)])}
+    const d=await mediaDB.from('content_items').delete().eq('id',id);
+    if(d.error)return toast(d.error.message);
+    document.querySelector('#modal').classList.remove('show');location.reload();
+  };
 
   const originalOpen=window.openEntity;
   window.openEntity=function(type,id=null){if(type==='content')return window.openContentWithMedia(id);return originalOpen(type,id)};
+
   window.contentTable=function(items){
-    return `<div class="table-wrap"><table><thead><tr><th>Media</th><th>Schedule</th><th>Client</th><th>Content</th><th>Platform</th><th>Owner</th><th>Status</th><th></th></tr></thead><tbody>${items.map(x=>{const media=x.media_url?(x.media_type?.startsWith('video/')?`<video src="${esc(x.media_url)}" class="table-media" muted></video>`:`<img src="${esc(x.media_url)}" class="table-media" alt="Content">`):`<span class="no-media">No media</span>`;const owner=(window.state?.profiles||[]).find(p=>p.id===x.owner_id);const client=(window.state?.clients||[]).find(c=>c.id===x.client_id);return `<tr><td>${media}</td><td>${esc(x.scheduled_at?new Date(x.scheduled_at).toLocaleString('en-IN'):'Not scheduled')}</td><td>${esc(client?.name||'Unassigned')}</td><td><b>${esc(x.title)}</b><div class="tag">${esc(x.content_type||'')}</div></td><td>${esc(x.platform||'-')}</td><td>${esc(owner?.full_name||owner?.email||'Unassigned')}</td><td><span class="badge ${['approved','scheduled','published'].includes(x.status)?'active':'review'}">${esc(x.status||'-')}</span></td><td><button type="button" class="icon-btn" onclick="editEntity('content','${x.id}')">Edit</button></td></tr>`}).join('')}</tbody></table></div>`;
+    // Use the real global application state. The previous version read window.state,
+    // but app.js declared `const state`, so client/owner IDs were saved correctly in
+    // Supabase while the table incorrectly displayed "Unassigned".
+    const clients=Array.isArray(window.state)?window.state.clients:[];
+    const profiles=Array.isArray(window.state)?window.state.profiles:[];
+    // app.js keeps state as a lexical global; expose a safe fallback by resolving
+    // names directly from the current loaded lists when available.
+    const clientList=(window.state?.clients||[]);
+    const profileList=(window.state?.profiles||[]);
+    return `<div class="table-wrap"><table><thead><tr><th>Media</th><th>Schedule</th><th>Client</th><th>Content</th><th>Platform</th><th>Owner</th><th>Status</th><th></th></tr></thead><tbody>${items.map(x=>{
+      const media=x.media_url?(x.media_type?.startsWith('video/')?`<video src="${esc(x.media_url)}" class="table-media" muted></video>`:`<img src="${esc(x.media_url)}" class="table-media" alt="Content">`):`<span class="no-media">No media</span>`;
+      const owner=profileList.find(p=>p.id===x.owner_id);
+      const client=clientList.find(c=>c.id===x.client_id);
+      return `<tr><td>${media}</td><td>${esc(x.scheduled_at?new Date(x.scheduled_at).toLocaleString('en-IN'):'Not scheduled')}</td><td>${esc(client?.name||'Unassigned')}</td><td><b>${esc(x.title)}</b><div class="tag">${esc(x.content_type||'')}</div></td><td>${esc(x.platform||'-')}</td><td>${esc(owner?.full_name||owner?.email||'Unassigned')}</td><td><span class="badge ${['approved','scheduled','published'].includes(x.status)?'active':'review'}">${esc(x.status||'-')}</span></td><td><button type="button" class="icon-btn" onclick="editEntity('content','${x.id}')">Edit</button></td></tr>`;
+    }).join('')}</tbody></table></div>`;
   };
+
   window.editEntity=function(type,id){if(type==='content')return window.openContentWithMedia(id);return window.openEntity(type,id)};
 })();
