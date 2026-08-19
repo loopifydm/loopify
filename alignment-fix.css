@@ -1,0 +1,10 @@
+/* Alignment pass: keep the tall brand SVG from expanding the header. */
+.site-header .nav{min-height:78px;height:78px;align-items:center}
+.site-header .brand{display:flex;align-items:center;width:150px;height:52px;overflow:hidden;flex:0 0 150px}
+.site-header .brand img{display:block;width:150px;height:auto;max-height:none;transform:translateY(-17px)}
+.site-header .nav-links{align-items:center;justify-content:flex-end;white-space:nowrap}
+.hero{padding-top:78px}
+.hero-copy{align-self:center}
+.hero-visual{align-self:center}
+@media(max-width:900px){.site-header .brand{width:120px;height:46px;flex-basis:120px}.site-header .brand img{width:120px;transform:translateY(-14px)}.hero{padding-top:56px}}
+@media(max-width:560px){.site-header .brand{width:108px;height:42px;flex-basis:108px}.site-header .brand img{width:108px;transform:translateY(-13px)}.hero{padding-top:48px}}
