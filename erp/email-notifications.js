@@ -3,13 +3,20 @@
   const clientEmail=id=>state.clients.find(c=>c.id===id)?.email||'';
   const clientName=id=>state.clients.find(c=>c.id===id)?.name||'Client';
   const invoke=async(type,payload)=>{
-    const {data:{session}}=await db.auth.getSession();
-    if(!session?.access_token) throw new Error('Your ERP login session has expired. Please sign out and sign in again.');
-    const {data,error}=await db.functions.invoke('send-email',{
-      body:{type,...payload},
-      headers:{Authorization:`Bearer ${session.access_token}`}
+    const {data:{session},error:sessionError}=await db.auth.getSession();
+    if(sessionError||!session?.access_token) throw new Error('Your ERP login session has expired. Please sign out and sign in again.');
+    const res=await fetch(`${SUPABASE_URL}/functions/v1/send-email`,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SUPABASE_KEY,
+        'Authorization':`Bearer ${session.access_token}`
+      },
+      body:JSON.stringify({type,...payload})
     });
-    if(error) throw new Error(data?.error||error.message||'Email service error');
+    let data={};
+    try{data=await res.json();}catch(_){data={};}
+    if(!res.ok) throw new Error(data?.error||data?.message||`Email service returned HTTP ${res.status}.`);
     if(data?.error) throw new Error(data.error);
     return data;
   };
