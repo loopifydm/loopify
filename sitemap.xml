@@ -1,28 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://loopifydm.github.io/loopify/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://loopifydm.github.io/loopify/#services</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://loopifydm.github.io/loopify/#work</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://loopifydm.github.io/loopify/#process</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://loopifydm.github.io/loopify/#about</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
+  <url><loc>https://loopifydm.github.io/loopify/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://loopifydm.github.io/loopify/services/digital-marketing-agency-coimbatore/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://loopifydm.github.io/loopify/services/social-media-marketing-coimbatore/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://loopifydm.github.io/loopify/services/meta-ads-agency-coimbatore/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://loopifydm.github.io/loopify/services/lead-generation-coimbatore/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://loopifydm.github.io/loopify/services/digital-marketing-education/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://loopifydm.github.io/loopify/services/digital-marketing-real-estate/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
 </urlset>
