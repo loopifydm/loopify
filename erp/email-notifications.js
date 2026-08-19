@@ -5,24 +5,14 @@
   const invoke=async(type,payload)=>{
     const {data:{session},error:sessionError}=await db.auth.getSession();
     if(sessionError||!session?.access_token) throw new Error('Your ERP login session has expired. Please sign out and sign in again.');
-    const res=await fetch(`${SUPABASE_URL}/functions/v1/send-email`,{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'apikey':SUPABASE_KEY,
-        'Authorization':`Bearer ${session.access_token}`
-      },
-      body:JSON.stringify({type,...payload})
-    });
-    let data={};
-    try{data=await res.json();}catch(_){data={};}
-    if(!res.ok) throw new Error(data?.error||data?.message||`Email service returned HTTP ${res.status}.`);
-    if(data?.error) throw new Error(data.error);
-    return data;
+    const res=await fetch(`${SUPABASE_URL}/functions/v1/send-email-free`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':`Bearer ${session.access_token}`},body:JSON.stringify({type,...payload})});
+    let data={};try{data=await res.json();}catch(_){data={};}
+    if(!res.ok)throw new Error(data?.error||data?.message||`Email service returned HTTP ${res.status}.`);
+    if(data?.error)throw new Error(data.error);return data;
   };
-  window.emailInvoice=async id=>{const x=state.invoices.find(i=>i.id===id);if(!x)return;const email=clientEmail(x.client_id);if(!email)return alert('This client does not have an email address.');if(!confirm(`Send invoice ${x.invoice_number||''} to ${email}?`))return;try{await invoke('invoice',{invoice:x,client:{name:clientName(x.client_id),email}});alert('Invoice email sent successfully.');}catch(e){alert('Unable to send invoice email: '+(e.message||e));}};
-  window.sendContentApproval=async id=>{const x=state.content.find(c=>c.id===id);if(!x)return;const email=clientEmail(x.client_id);if(!email)return alert('This client does not have an email address.');if(!confirm(`Send content approval request to ${email}?`))return;try{await invoke('content_approval',{content:x,client:{name:clientName(x.client_id),email},app_url:location.origin+location.pathname});alert('Approval email sent successfully.');}catch(e){alert('Unable to send approval email: '+(e.message||e));}};
-  window.sendWeeklyReport=async()=>{const email=prompt('Enter the email address for the weekly report:',state.profile?.email||'');if(!email)return;const week=new Date();const summary={clients:state.clients.length,tasks:state.tasks.length,content:state.content.length,leads:state.leads.length,campaigns:state.campaigns.length,invoices:state.invoices.length};try{await invoke('weekly_report',{recipient:email,week_ending:week.toISOString().slice(0,10),summary});alert('Weekly report sent successfully.');}catch(e){alert('Unable to send weekly report: '+(e.message||e));}};
+  window.emailInvoice=async id=>{const x=state.invoices.find(i=>i.id===id);if(!x)return;const email=clientEmail(x.client_id);if(!email)return alert('This client does not have an email address.');if(!confirm(`Send invoice ${x.invoice_number||''} as a test email?\n\nResend free mode will deliver it to your ERP administrator email, not the client.\nIntended client: ${email}`))return;try{const r=await invoke('invoice',{invoice:x,client:{name:clientName(x.client_id),email}});alert(`Invoice test email sent successfully.\n\nDelivered to: ${r.delivered_to||'your administrator email'}`);}catch(e){alert('Unable to send invoice email: '+(e.message||e));}};
+  window.sendContentApproval=async id=>{const x=state.content.find(c=>c.id===id);if(!x)return;const email=clientEmail(x.client_id);if(!email)return alert('This client does not have an email address.');if(!confirm(`Send content approval as a test email?\n\nIt will be delivered to your ERP administrator email.\nIntended client: ${email}`))return;try{const r=await invoke('content_approval',{content:x,client:{name:clientName(x.client_id),email},app_url:location.origin+location.pathname});alert(`Approval test email sent successfully.\n\nDelivered to: ${r.delivered_to||'your administrator email'}`);}catch(e){alert('Unable to send approval email: '+(e.message||e));}};
+  window.sendWeeklyReport=async()=>{if(!confirm('Send the weekly report as a test email to your ERP administrator email?'))return;const week=new Date();const summary={clients:state.clients.length,tasks:state.tasks.length,content:state.content.length,leads:state.leads.length,campaigns:state.campaigns.length,invoices:state.invoices.length};try{const r=await invoke('weekly_report',{week_ending:week.toISOString().slice(0,10),summary});alert(`Weekly report test email sent successfully.\n\nDelivered to: ${r.delivered_to||'your administrator email'}`);}catch(e){alert('Unable to send weekly report: '+(e.message||e));}};
   const addAction=(cell,label,onclick,key)=>{if(!cell||cell.querySelector(`[data-email-action="${key}"]`))return;const b=document.createElement('button');b.type='button';b.className='icon-btn';b.textContent=label;b.dataset.emailAction=key;b.onclick=onclick;cell.appendChild(b);};
   const patchTables=()=>{
     if(state.section==='finance')document.querySelectorAll('button').forEach(edit=>{const m=edit.getAttribute('onclick')?.match(/editEntity\(['"]invoices['"],['"]([^'"]+)/);if(m)addAction(edit.parentElement,'Email',()=>emailInvoice(m[1]),'invoice-'+m[1]);});
